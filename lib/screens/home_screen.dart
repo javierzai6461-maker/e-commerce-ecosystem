@@ -6,6 +6,8 @@ import '../providers/recent_searches_provider.dart';
 import '../widgets/product_card.dart';
 import '../widgets/error_widget.dart';
 import '../widgets/recent_searches_widget.dart';
+import '../utils/debouncer.dart';
+import 'favourites_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _searchFocusNode = FocusNode();
+  final Debouncer _debouncer = Debouncer(milliseconds: 500);
   bool _showRecentSearches = false;
 
   @override
@@ -64,6 +67,16 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<ProductProvider>().searchProducts(query);
   }
 
+  void _onSearchChanged(String query) {
+    _debouncer.run(() {
+      if (query.trim().isEmpty) {
+        context.read<ProductProvider>().loadProducts();
+      } else {
+        context.read<ProductProvider>().searchProducts(query);
+      }
+    });
+  }
+
   void _clearSearch() {
     _searchController.clear();
     _searchFocusNode.unfocus();
@@ -76,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     _scrollController.dispose();
     _searchFocusNode.dispose();
+    _debouncer.dispose();
     super.dispose();
   }
 
@@ -163,6 +177,34 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FavouritesScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withAlpha(50),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.redAccent,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -187,6 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: TextField(
           controller: _searchController,
           focusNode: _searchFocusNode,
+          onChanged: _onSearchChanged,
           onSubmitted: _performSearch,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
